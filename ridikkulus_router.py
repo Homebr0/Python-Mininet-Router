@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License along with this program.
 # If not, see <http://www.gnu.org/licenses/>.
 
-from router_base import SimpleRouterBase, PoxConnectorApp
+from router_base import SimpleRouterBase, PoxConnectorApp, headers
 
 from ridikkulus_routing_table import RoutingTable
 from ridikkulus_arp_cache import ArpCache
@@ -32,16 +32,49 @@ class SimpleRouter(SimpleRouterBase):
     #
     def handlePacket(self, packet, inIface):
         print("Got packet of size %d on interface %s" % (len(packet), inIface), file=sys.stderr)
-    
+        #pkt = headers.EtherHeader(packet)
+        #print (pkt.dhost)
+        #print (pkt.shost)
+        #print (pkt.type)
+        
+        #e = headers.EtherHeader()
+        #decodeLength = e.decode(packet)
+        #print (decodeLength)
+        
+        #payload = packet[decodeLength:]
+        #print (payload)
+        #  0x0806 = 2054 - ARP
+        #  0x0800 = 2048 - IPV4
+        #arpT = 2054
+        #ipvT = 2048
+
+
+
+        #if pkt.type == arpT:
+        #    self.arpProcess(pkt)
+        #elif pkt.type == ipvT:
+        #    self.ipProcess(pkt)
+
         iface = self.findIfaceByName(inIface)
         if not iface:
             print("Received packet, but interface is unknown, ignoring", file=sys.stderr)
             return
-    
+
+        #for iface in self.ifaces:
+        #    print (iface.name, iface.mac, iface.ip)
         #
         # FILL IN THE REST
         #
+        #print ("--------------------------------------------------------")
     
+    #def arpProcess(self, packet):
+    #    print ("started arp process")
+    #    pass
+
+    #def ipProcess(self,packet):
+    #    print ("started ipv4 process")
+    #    pass
+
     #
     # USE THIS METHOD TO SEND PACKETS OUT
     #
