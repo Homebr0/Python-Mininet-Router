@@ -13,6 +13,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 
 from router_base import ArpCacheBase
+import time
 
 MAX_SENT_TIME = 5
 
@@ -42,7 +43,10 @@ class ArpCache(ArpCacheBase):
                     req->timeSent = now
                     req->nTimesSent++
         '''
-
+        if (time.localtime - self.timeSent) > 1:
+            if self.nTimesSent >= 5:
+                pkt = headers.IcmpHeader(code = 1)
+                buf = pkt.encode()
         pass
 
     def handleArpReply(self): # add more params as needed
@@ -79,4 +83,14 @@ class ArpCache(ArpCacheBase):
                     record entry for removal
             remove all entries marked for removal
         '''
-        pass
+        for request in self.arpRequests :
+            self.handleArpRequest(request)
+        
+        for entry in self.cacheEntries:
+            if not entry.isValid():
+                self.entry.remove = True
+
+         for entry in self.cacheEntries:
+            if entry.remove
+                del entry
+          

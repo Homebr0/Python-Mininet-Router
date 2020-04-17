@@ -37,6 +37,7 @@ class ArpEntry:
         self.ip = IpAddress(ip)
         self.timeAdded = time.time()
         self.isValid = True
+        self.remove = False
         
 class ArpCacheBase:
     def __init__(self):

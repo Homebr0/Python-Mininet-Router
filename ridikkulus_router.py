@@ -53,8 +53,8 @@ class SimpleRouter(SimpleRouterBase):
         print("Iface table:\n------------------------------------------------")
         
         for iface in self.ifaces:
-            print (iface.name, iface.mac, iface.ip)            
-        print ("--------------------------------------------")
+            print (iface.name, iface.mac, iface.ip)           
+        
 
         if pkt.type == arpT:
             self.arpProcess(packet)            
@@ -74,6 +74,7 @@ class SimpleRouter(SimpleRouterBase):
         pkt = headers.ArpHeader()
         decodeLength = ethPkt.decode(packet)     
         pkt.decode(packet[decodeLength:])
+        print ("OP Code:    " + "request" if pkt.op == 1 else "reply")
         print ("Sender HW:  " + str(pkt.sha))
         print ("Sender IP:  " + str(pkt.sip))
         print ("Target HW:  " + str(pkt.tha))
