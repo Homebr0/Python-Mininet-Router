@@ -57,7 +57,7 @@ class SimpleRouter(SimpleRouterBase):
         
 
         if pkt.type == arpT:
-            self.arpProcess(packet)            
+            self.arpProcess(packet, iface)            
         elif pkt.type == ipvT:
             self.ipProcess(pkt)
 
@@ -66,7 +66,7 @@ class SimpleRouter(SimpleRouterBase):
         # FILL IN THE REST
         #
     
-    def arpProcess(self, packet):
+    def arpProcess(self, packet, iface):
         
         print ("--------------------------------------------")
         print ("started arp process")   
@@ -78,7 +78,16 @@ class SimpleRouter(SimpleRouterBase):
         print ("Sender HW:  " + str(pkt.sha))
         print ("Sender IP:  " + str(pkt.sip))
         print ("Target HW:  " + str(pkt.tha))
-        print ("Target IP:  " + str(pkt.tip))        
+        print ("Target IP:  " + str(pkt.tip))
+        thisIface = iface
+        for ifc in self.ifaces:
+            if ifc.name == iface.name:
+                thisIface = ifc
+        replyArpPkt = headers.ArpHeader(hln=6, pln=4, op=2, sha=thisIface.mac, sip=thisIface.ip, tha=pkt.sha, tip=pkt.sip)
+        buf = replyArpPkt.encode()
+        replyEthPkt = headers.EtherHeader(shost=thisIface.mac, dhost=pkt.sha, type=2054)
+        buf = replyEthPkt.encode() + buf
+        self.sendPacket(packet,thisIface)
         #for iface in self.ifaces:
         #    if pkt.tip != iface.ip:
         #        self.sendPacket(packet,iface)
