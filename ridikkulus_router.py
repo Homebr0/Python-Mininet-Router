@@ -43,35 +43,44 @@ class SimpleRouter(SimpleRouterBase):
         #  0x0800 = 2048 - IPV4
         arpT = 2054
         ipvT = 2048
-
-        if pkt.type == arpT:
-            self.arpProcess(packet[decodeLength:])
-        elif pkt.type == ipvT:
-            self.ipProcess(pkt)
-
         iface = self.findIfaceByName(inIface)
+        
         if not iface:
             print("Received packet, but interface is unknown, ignoring", file=sys.stderr)
             return
         print ("--------------------------------------------")
+        
         print("Iface table:\n------------------------------------------------")
+        
         for iface in self.ifaces:
-            print (iface.name, iface.mac, iface.ip)
+            print (iface.name, iface.mac, iface.ip)            
         print ("--------------------------------------------")
+
+        if pkt.type == arpT:
+            self.arpProcess(packet)            
+        elif pkt.type == ipvT:
+            self.ipProcess(pkt)
+
+        
         #
         # FILL IN THE REST
         #
     
     def arpProcess(self, packet):
+        
         print ("--------------------------------------------")
-        print ("started arp process")        
+        print ("started arp process")   
+        ethPkt = headers.EtherHeader()
         pkt = headers.ArpHeader()
-        pkt.decode(packet)
+        decodeLength = ethPkt.decode(packet)     
+        pkt.decode(packet[decodeLength:])
         print ("Sender HW:  " + str(pkt.sha))
         print ("Sender IP:  " + str(pkt.sip))
         print ("Target HW:  " + str(pkt.tha))
-        print ("Target IP:  " + str(pkt.tip))
-
+        print ("Target IP:  " + str(pkt.tip))        
+        #for iface in self.ifaces:
+        #    if pkt.tip != iface.ip:
+        #        self.sendPacket(packet,iface)
         pass
 
     def ipProcess(self,packet):
