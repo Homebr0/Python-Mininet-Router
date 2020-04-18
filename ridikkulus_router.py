@@ -35,8 +35,9 @@ class SimpleRouter(SimpleRouterBase):
         print("...Got packet of size %d on interface %s" % (len(packet), inIface), file=sys.stderr)
         self.printEthPacket(packet)
         pkt = headers.EtherHeader()
-        decodeLength = pkt.decode(packet)        
-        print ("Interface:      " + str(inIface))
+        decodeLength = pkt.decode(packet)
+                
+        #print ("...received packet on interface: " + str(inIface))
         #  0x0806 = 2054 - ARP
         #  0x0800 = 2048 - IPV4
         arpT = 2054
@@ -46,18 +47,13 @@ class SimpleRouter(SimpleRouterBase):
         if not iface:
             print("Received packet, but interface is unknown, ignoring", file=sys.stderr)
             return
-        print ("--------------------------------")
-        
-        print("Iface table:\n--------------------------------")
-        
-        for ifc in self.ifaces:
-            print (ifc.name, ifc.mac, ifc.ip)           
+            
         
 
         if pkt.type == arpT:
             self.arpProcess(packet, iface)            
         elif pkt.type == ipvT:
-            self.ipProcess(pkt)
+            self.ipProcess(packet, iface)
 
         
         #
@@ -68,24 +64,52 @@ class SimpleRouter(SimpleRouterBase):
         ethPkt = headers.EtherHeader()
         pkt = headers.ArpHeader()
         decodeLength = ethPkt.decode(packet)     
-        pkt.decode(packet[decodeLength:])        
-        print ("--------------------------------")
-        print ("...started arp process")
-        thisIface = iface      
-        replyArpPkt = headers.ArpHeader(hln=6, pln=4, op=2, sha=thisIface.mac, sip=thisIface.ip, tha=pkt.sha, tip=pkt.sip)
-        buf = replyArpPkt.encode()
-        replyEthPkt = headers.EtherHeader(shost=thisIface.mac, dhost=pkt.sha, type=2054)
-        buf = replyEthPkt.encode() + buf
-        print ("...sending Arp Reply")
-        self.printEthPacket(buf)
-        self.sendPacket(packet,thisIface.name)
-        #for iface in self.ifaces:
-        #    if pkt.tip != iface.ip:
-        #        self.sendPacket(packet,iface)
+        pkt.decode(packet[decodeLength:])   
+        if pkt.op == 1:
+            print ("--------------------------------")
+            print ("...started arp process")
+            thisIface = iface      
+            replyArpPkt = headers.ArpHeader(hln=6, pln=4, op=2, sha=thisIface.mac, sip=thisIface.ip, tha=pkt.sha, tip=pkt.sip)
+            buf = replyArpPkt.encode()
+            replyEthPkt = headers.EtherHeader(shost=thisIface.mac, dhost=pkt.sha, type=2054)
+            buf = replyEthPkt.encode() + buf
+
+            print ("...sending Arp Reply")
+            self.printEthPacket(buf)
+            self.sendPacket(buf,thisIface.name)
+        elif pkt.op == 2:
+            source_mac = pkt.sha
+            source_ip = pkt.sip
+            source_iface = iface.name
+            self.arpCache.queueRequest(pkt.sip, pkt, iface)
+            #for iface in self.ifaces:
+            #    if pkt.tip != iface.ip:
+            #        self.sendPacket(packet,iface)
         pass
 
-    def ipProcess(self,packet):
+    def ipProcess(self,packet,iface):
         print ("...started ipv4 process")
+        ethPkt = headers.EtherHeader()
+        pkt = headers.IpHeader()
+        decodeLength = ethPkt.decode(packet)        
+        pkt.decode(packet[decodeLength:])
+        for ifc in self.ifaces:
+            if ifc.name != iface.name:
+                searchArpPkt = headers.ArpHeader(hln=6, pln=4, op=1, sha=ifc.mac, sip=ifc.ip, tha="FF:FF:FF:FF:FF:FF", tip=pkt.dst)
+                buf = searchArpPkt.encode()
+                replyEthPkt = headers.EtherHeader(shost=ifc.mac, dhost="FF:FF:FF:FF:FF:FF", type=2054)
+                buf = replyEthPkt.encode() + buf
+                print("--------------------------------")
+                print("...sending arp request to interface " + ifc.name)
+                self.printEthPacket(buf)
+                self.sendPacket(buf,ifc.name)            
+        #if self.arpCache.lookup(pkt.dst) == None:
+        #    print ("Adding to cache" + str(self.arpCache.queueRequest(pkt.dst, pkt, iface)))
+        #    self.routingTable.lookup(str(pkt.dst))
+        #else:
+        #    print("Exists in the cache: " + str(self.arpCache.lookup(pkt.dst)))
+        
+        
         pass
     
     def printArpPacket(self,packet):
@@ -94,27 +118,63 @@ class SimpleRouter(SimpleRouterBase):
         print("--------------------------------")
         print("Arp Header")
         print("--------------------------------") 
-        print ("OP Code:    " + "request" if pkt.op == 1 else "reply")
+        print ("frmthwadr:  " + str(pkt.hrd))
+        print ("frm prtcl:  " + str(pkt.pro)) 
+        print ("OP Code:    " + ("request" if pkt.op == 1 else "reply"))
         print ("Sender HW:  " + str(pkt.sha))
         print ("Sender IP:  " + str(pkt.sip))
         print ("Target HW:  " + str(pkt.tha))
         print ("Target IP:  " + str(pkt.tip))
         pass
 
-    def printEthPacket(self, packet):
-        pkt = headers.EtherHeader()        
-        decodeLength = pkt.decode(packet) 
+    def printIpPacket(self,packet):        
+        pkt = headers.IpHeader()
+        pkt.decode(packet)
         print("--------------------------------")
-        print("Ethernet Header")
-        print("--------------------------------")    
-        print ("Source MAC: " + str(pkt.shost))
-        print ("Dest MAC:   " + str(pkt.dhost))
-        print ("Type:       " + str(pkt.type))
-        arpT = 2054
-        ipvT = 2048
-        if pkt.type == arpT:
-           self.printArpPacket(packet[decodeLength:])
+        print("IP Header")
+        print("--------------------------------") 
+        print ("version:    " + str(pkt.v))
+        print ("header lth: " + str(pkt.hl))         
+        print ("type:       " + str(pkt.tos))
+        print ("ttl lngth:  " + str(pkt.len))
+        print ("id:         " + str(pkt.id))
+        print ("offset:     " + str(pkt.off))
+        print ("TTL:        " + str(pkt.ttl))         
+        print ("Protocol:   " + str(pkt.p))
+        print ("Chksum:     " + str(pkt.sum))
+        print ("Source IP:  " + str(pkt.src))
+        print ("Dest IP:    " + str(pkt.dst))
         pass
+    
+    def printEthPacket(self, packet):
+        SUPPORTED_TYPES = [2054,2048]
+        pkt = headers.EtherHeader()        
+        decodeLength = pkt.decode(packet)
+        if pkt.type in SUPPORTED_TYPES:
+            print("--------------------------------")
+            print("Ethernet Header")
+            print("--------------------------------")    
+            print ("Source MAC: " + str(pkt.shost))
+            print ("Dest MAC:   " + str(pkt.dhost))
+            print ("Type:       " + str(pkt.type))
+            arpT = 2054
+            ipvT = 2048
+            if pkt.type == arpT:
+                self.printArpPacket(packet[decodeLength:])
+            elif pkt.type == ipvT:
+                self.printIpPacket(packet[decodeLength:])
+            self.printInterfaces()
+        else:
+            print ("...packet type " + str(pkt.type) + " ignored")
+        pass
+
+    def printInterfaces(self):
+        print("--------------------------------")
+        print("Iface table:\n--------------------------------")
+        for ifc in self.ifaces:
+            print (ifc.name, ifc.mac, ifc.ip) 
+        pass
+    
     #
     # USE THIS METHOD TO SEND PACKETS OUT
     #

@@ -33,4 +33,17 @@ class RoutingTable(RoutingTableBase):
         ##########################
         ## TODO: IMPLEMENT THIS ##
         ##########################
-        raise RuntimeError("NOT IMPLEMENTED YET")
+        
+        i = 0
+        longest = self.entries[0]
+        length = len(self.entries)
+        for i in range (length):
+            for entry in self.entries:
+                print (ip)
+                segment = ip[i]
+                if(entry.dest == segment):
+                    longest = entry
+            i+= 1
+        return longest
+            
+        
