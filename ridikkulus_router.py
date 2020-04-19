@@ -143,8 +143,28 @@ class SimpleRouter(SimpleRouterBase):
             print("...looking for packet destination: " + str(pkt.dst))
             print("...return from routingtable lookup: " + str(self.routingTable.lookup(str(pkt.dst))))
             if(self.routingTable.lookup(str(pkt.dst)) != None):
-                outface = self.routingTable.lookup(str(pkt.dst))
-                outmac = self.arpCache
+                print("...checking queue")
+                while self.queue:
+
+                    queuePkt = self.queue.pop()
+                    print("--------------------------------")
+                    print("...processing queue packet:")
+                    self.printEthPacket(queuePkt)
+                    tempEth = headers.EtherHeader()
+                    tempIpPkt = headers.IpHeader()
+                    tempDecodeLength = tempEth.decode(queuePkt) 
+                    tempIpPkt.decode(queuePkt[tempDecodeLength:])
+                    inface = self.findIfaceByIp(tempIpPkt.dst)
+                    outface = self.routingTable.lookup(str(tempIpPkt.dst))                        
+                    #self.printEthPacket(packet)
+                    tempEth.shost = self.findIfaceByName(outface).mac
+                    tempEth.dhost = self.arpCache.lookup(tempIpPkt.dst).mac
+                    outPkt = tempEth.encode() + queuePkt[tempDecodeLength:]
+                    #print("...out packet: ")
+                    #self.printEthPacket(outPkt) 
+                    self.sendPacket(outPkt,outface)
+                print("...queue is empty")        
+                outface = self.routingTable.lookup(str(pkt.dst))                
                 #self.printEthPacket(packet)
                 ethPkt.shost = self.findIfaceByName(outface).mac
                 ethPkt.dhost = self.arpCache.lookup(pkt.dst).mac
@@ -154,6 +174,7 @@ class SimpleRouter(SimpleRouterBase):
                 self.sendPacket(outPkt,outface)
 
         else:
+            self.queue.append(packet)
             for ifc in self.ifaces:
                 if ifc.name != iface.name:
                     searchArpPkt = headers.ArpHeader(hln=6, pln=4, op=1, sha=ifc.mac, sip=ifc.ip, tha="FF:FF:FF:FF:FF:FF", tip=pkt.dst)
@@ -191,7 +212,15 @@ class SimpleRouter(SimpleRouterBase):
         
         
         pass
-    
+    def printIcmpPacket(self,packet):
+        pkt = headers.IcmpHeader()
+        pkt.decode(packet)
+        print("--------------------------------")
+        print("Arp Header")
+        print("--------------------------------") 
+        print(str(pkt))
+        pass
+
     def printArpPacket(self,packet):
         pkt = headers.ArpHeader()
         pkt.decode(packet)
@@ -209,7 +238,7 @@ class SimpleRouter(SimpleRouterBase):
 
     def printIpPacket(self,packet):        
         pkt = headers.IpHeader()
-        pkt.decode(packet)
+        decodeLength = pkt.decode(packet)
         print("--------------------------------")
         print("IP Header")
         print("--------------------------------") 
@@ -224,6 +253,7 @@ class SimpleRouter(SimpleRouterBase):
         print ("Chksum:     " + str(pkt.sum))
         print ("Source IP:  " + str(pkt.src))
         print ("Dest IP:    " + str(pkt.dst))
+        self.printIcmpPacket(packet[decodeLength:])
         pass
     
     def printEthPacket(self, packet):

@@ -47,7 +47,7 @@ class ArpCacheBase:
         self.shouldStop = False
 
         self.mutex = threading.RLock()
-        self.tickerThread = threading.Thread(target=self.__ticker)
+        self.tickerThread = threading.Thread(target=self.__ticker) 
         self.tickerThread.start()
 
     def stop(self):
