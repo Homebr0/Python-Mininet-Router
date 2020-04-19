@@ -109,17 +109,21 @@ class SimpleRouter(SimpleRouterBase):
 
         pkt = headers.IcmpHeader()
         icmpDecode = decode(packet[decodeLength + ipDecodeLength:])
-        pkt.type = 0
-        checksum = utils.checksum(pkt.encode())
-        pkt.sum = checksum    
-        print (str(pkt))  
+        
 
         
         
         
         buf = ethPkt.encode() + ipPkt.encode() + pkt.encode() + packet[decodeLength + ipDecodeLength + icmpDecode:]
-
-        print(ethPkt.shost)
+        if len(packet[decodeLength + ipDecodeLength + icmpDecode:]) > 0:
+            pkt.type=3
+            pkt.code=3
+        else:
+            pkt.type = 0
+        checksum = utils.checksum(pkt.encode())
+        pkt.sum = checksum    
+        #print (str(pkt))  
+        #print(ethPkt.shost)
         outface = self.findIfaceByMac(ethPkt.shost)
         self.printEthPacket(buf)
 
@@ -139,8 +143,19 @@ class SimpleRouter(SimpleRouterBase):
         ipDecode = ipPkt.decode(packet[decodeLength:])
 
         inface = self.findIfaceByIp(ipPkt.dst)
+        if ipPkt.ttl < 1:
+            pkt = headers.IcmpHeader()
+            icmpDecode = pkt.decode(packet[decodeLength + ipDecode:])
+            pkt.type = 11
+            pkt.code = 0
+            checksum = utils.checksum(pkt.encode())
+            pkt.sum = checksum
 
-        if inface:
+            buf = ethPkt.encode() + ipPkt.encode() + pkt.encode() + packet[decodeLength + ipDecodeLength + icmpDecode:]
+            outface = self.findIfaceByMac(ethPkt.shost)
+
+            self.sendPacket(buf, outface.name)
+        elif inface:
             self.echoIcmp(packet, inface)
         elif (self.arpCache.lookup(ipPkt.dst) != None):
             print("...looking for packet destination: " + str(ipPkt.dst))
@@ -223,12 +238,16 @@ class SimpleRouter(SimpleRouterBase):
         pass
     def printIcmpPacket(self,packet):
         pkt = headers.IcmpHeader()
-        pkt.decode(packet)
-        print("--------------------------------")
-        print("Arp Header")
-        print("--------------------------------") 
-        print(str(pkt))
-        pass
+        try:
+            pkt.decode(packet)
+            print("--------------------------------")
+            print("Arp Header")
+            print("--------------------------------") 
+            print(str(pkt))
+        except RuntimeError:
+            print("...cant print icmp, invalid type")
+        finally:            
+            pass
 
     def printArpPacket(self,packet):
         pkt = headers.ArpHeader()
