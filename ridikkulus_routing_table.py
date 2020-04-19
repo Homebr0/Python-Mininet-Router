@@ -12,7 +12,7 @@
 # You should have received a copy of the GNU General Public License along with this program.
 # If not, see <http://www.gnu.org/licenses/>.
 
-from router_base import RoutingTableBase
+from router_base import RoutingTableBase, RoutingTableEntry
 
 class RoutingTable(RoutingTableBase):
 
@@ -33,17 +33,20 @@ class RoutingTable(RoutingTableBase):
         ##########################
         ## TODO: IMPLEMENT THIS ##
         ##########################
-        
-        i = 0
-        longest = self.entries[0]
-        length = len(self.entries)
-        for i in range (length):
-            for entry in self.entries:
-                print (ip)
-                segment = ip[i]
-                if(entry.dest == segment):
-                    longest = entry
-            i+= 1
-        return longest
-            
-        
+        #
+        #i = 0
+        #longest = self.entries[0]
+        #length = len(self.entries)
+        #for i in range (length):
+        #    for entry in self.entries:
+        #        print (ip)
+        #        segment = ip[i]
+        #        if(entry.dest == segment):
+        #            longest = entry
+        #    i+= 1
+        #return longest
+        #    
+        for entry in self.entries:
+            if str(entry.dest) == str(ip):
+                return entry.ifName
+        return None

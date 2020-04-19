@@ -15,7 +15,7 @@
 
 from router_base import SimpleRouterBase, PoxConnectorApp, headers
 
-from ridikkulus_routing_table import RoutingTable
+from ridikkulus_routing_table import RoutingTable, RoutingTableEntry
 from ridikkulus_arp_cache import ArpCache
 
 import sys
@@ -81,7 +81,11 @@ class SimpleRouter(SimpleRouterBase):
             source_mac = pkt.sha
             source_ip = pkt.sip
             source_iface = iface.name
-            self.arpCache.queueRequest(pkt.sip, pkt, iface)
+            print ("...adding arp entry: " + str(source_mac) +", "+str(source_ip))
+            self.arpCache.insertArpEntry(source_mac,source_ip)
+            print ("...adding routing entry: " + str(pkt.sip) +", "+str(pkt.sip) + ", " + "0.0.0.0, " + str(iface.name))
+            self.routingTable.addEntry(RoutingTableEntry(dest=pkt.sip,gw=pkt.sip,mask="0.0.0.0",ifName=iface.name))
+            #self.arpCache.queueRequest(pkt.sip, pkt, iface)
             #for iface in self.ifaces:
             #    if pkt.tip != iface.ip:
             #        self.sendPacket(packet,iface)
@@ -93,16 +97,34 @@ class SimpleRouter(SimpleRouterBase):
         pkt = headers.IpHeader()
         decodeLength = ethPkt.decode(packet)        
         pkt.decode(packet[decodeLength:])
-        for ifc in self.ifaces:
-            if ifc.name != iface.name:
-                searchArpPkt = headers.ArpHeader(hln=6, pln=4, op=1, sha=ifc.mac, sip=ifc.ip, tha="FF:FF:FF:FF:FF:FF", tip=pkt.dst)
-                buf = searchArpPkt.encode()
-                replyEthPkt = headers.EtherHeader(shost=ifc.mac, dhost="FF:FF:FF:FF:FF:FF", type=2054)
-                buf = replyEthPkt.encode() + buf
-                print("--------------------------------")
-                print("...sending arp request to interface " + ifc.name)
-                self.printEthPacket(buf)
-                self.sendPacket(buf,ifc.name)            
+        if (self.arpCache.lookup(pkt.dst) != None):
+            print("...looking for packet destination: " + str(pkt.dst))
+            print("...return from routingtable lookup: " + str(self.routingTable.lookup(str(pkt.dst))))
+            if(self.routingTable.lookup(str(pkt.dst)) != None):
+                outface = self.routingTable.lookup(str(pkt.dst))
+                outmac = self.arpCache
+                self.printEthPacket(packet)
+                ethPkt.shost = self.findIfaceByName(outface).mac
+                ethPkt.dhost = self.arpCache.lookup(pkt.dst).mac
+                outPkt = ethPkt.encode() + packet[decodeLength:]
+                print("...out packet: ")
+                self.printEthPacket(outPkt)
+                self.sendPacket(outPkt,outface)
+
+        else:
+            for ifc in self.ifaces:
+                if ifc.name != iface.name:
+                    searchArpPkt = headers.ArpHeader(hln=6, pln=4, op=1, sha=ifc.mac, sip=ifc.ip, tha="FF:FF:FF:FF:FF:FF", tip=pkt.dst)
+                    buf = searchArpPkt.encode()
+                    replyEthPkt = headers.EtherHeader(shost=ifc.mac, dhost="FF:FF:FF:FF:FF:FF", type=2054)
+                    buf = replyEthPkt.encode() + buf
+                    print("--------------------------------")
+                    print("...sending arp request to interface " + ifc.name)
+                    self.printEthPacket(buf)
+                    self.sendPacket(buf,ifc.name) 
+                    
+        
+                
         #if self.arpCache.lookup(pkt.dst) == None:
         #    print ("Adding to cache" + str(self.arpCache.queueRequest(pkt.dst, pkt, iface)))
         #    self.routingTable.lookup(str(pkt.dst))
