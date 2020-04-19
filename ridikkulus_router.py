@@ -133,10 +133,13 @@ class SimpleRouter(SimpleRouterBase):
     def ipProcess(self,packet,iface):
         print ("...started ipv4 process")
         ethPkt = headers.EtherHeader()
-        pkt = headers.IpHeader()
-        decodeLength = ethPkt.decode(packet)        
-        pkt.decode(packet[decodeLength:])
-        inface = self.findIfaceByIp(pkt.dst)
+        decodeLength = ethPkt.decode(packet)
+        
+        ipPkt = headers.IpHeader()                
+        ipDecode = ipPkt.decode(packet[decodeLength:])
+
+        inface = self.findIfaceByIp(ipPkt.dst)
+
         if inface:
             self.echoIcmp(packet, inface)
         if (self.arpCache.lookup(pkt.dst) != None):
@@ -153,22 +156,24 @@ class SimpleRouter(SimpleRouterBase):
                     tempEth = headers.EtherHeader()
                     tempIpPkt = headers.IpHeader()
                     tempDecodeLength = tempEth.decode(queuePkt) 
-                    tempIpPkt.decode(queuePkt[tempDecodeLength:])
+                    tempIpDecode = tempIpPkt.decode(queuePkt[tempDecodeLength:])                    
+                    tempIpPkt.ttl =  tempIpPkt.ttl - 1                    
                     inface = self.findIfaceByIp(tempIpPkt.dst)
                     outface = self.routingTable.lookup(str(tempIpPkt.dst))                        
                     #self.printEthPacket(packet)
                     tempEth.shost = self.findIfaceByName(outface).mac
                     tempEth.dhost = self.arpCache.lookup(tempIpPkt.dst).mac
-                    outPkt = tempEth.encode() + queuePkt[tempDecodeLength:]
+                    outPkt = tempEth.encode() +  + queuePkt[tempDecodeLength + tempIpDecode:]
                     #print("...out packet: ")
                     #self.printEthPacket(outPkt) 
                     self.sendPacket(outPkt,outface)
                 print("...queue is empty")        
-                outface = self.routingTable.lookup(str(pkt.dst))                
+                outface = self.routingTable.lookup(str(ipPkt.dst))                
                 #self.printEthPacket(packet)
                 ethPkt.shost = self.findIfaceByName(outface).mac
-                ethPkt.dhost = self.arpCache.lookup(pkt.dst).mac
-                outPkt = ethPkt.encode() + packet[decodeLength:]
+                ethPkt.dhost = self.arpCache.lookup(ipPkt.dst).mac
+                ipPkt.ttl =  ipPkt.ttl - 1
+                outPkt = ethPkt.encode() + ipPkt.encode() + packet[decodeLength + ipDecode:]
                 #print("...out packet: ")
                 #self.printEthPacket(outPkt)
                 self.sendPacket(outPkt,outface)
