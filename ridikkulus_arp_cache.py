@@ -12,7 +12,7 @@
 # You should have received a copy of the GNU General Public License along with this program.
 # If not, see <http://www.gnu.org/licenses/>.
 
-from router_base import ArpCacheBase
+from router_base import ArpCacheBase, headers
 import time
 
 MAX_SENT_TIME = 5
@@ -43,10 +43,10 @@ class ArpCache(ArpCacheBase):
                     req->timeSent = now
                     req->nTimesSent++
         '''
-        #if (time.localtime - self.timeSent) > 1:
-        #    if self.nTimesSent >= 5:
-        #        pkt = headers.IcmpHeader(code = 1)
-        #        buf = pkt.encode()
+        if (time.localtime - self.timeSent) > 1:
+            if self.nTimesSent >= 5:
+                pkt = headers.IcmpHeader(code = 1)
+                buf = pkt.encode()
         pass
 
     def handleArpReply(self): # add more params as needed

@@ -109,7 +109,7 @@ class SimpleRouterBase:
     #
     def findIfaceByMac(self, mac):
         for iface in self.ifaces:
-            if iface.addr == mac:
+            if str(iface.mac) == str(mac):
                 return iface
         return None
 

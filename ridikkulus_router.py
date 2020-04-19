@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License along with this program.
 # If not, see <http://www.gnu.org/licenses/>.
 
-from router_base import SimpleRouterBase, PoxConnectorApp, headers
+from router_base import SimpleRouterBase, PoxConnectorApp, headers, utils
 
 from ridikkulus_routing_table import RoutingTable, RoutingTableEntry
 from ridikkulus_arp_cache import ArpCache
@@ -75,7 +75,7 @@ class SimpleRouter(SimpleRouterBase):
             buf = replyEthPkt.encode() + buf
 
             print ("...sending Arp Reply")
-            self.printEthPacket(buf)
+            #self.printEthPacket(buf)
             self.sendPacket(buf,thisIface.name)
         elif pkt.op == 2:
             source_mac = pkt.sha
@@ -91,24 +91,66 @@ class SimpleRouter(SimpleRouterBase):
             #        self.sendPacket(packet,iface)
         pass
 
+    def echoIcmp(self, packet, iface):
+        print("...Starting echo process")
+        self.printEthPacket(packet)
+        
+        ethPkt = headers.EtherHeader()
+        decodeLength = ethPkt.decode(packet)
+        temp = ethPkt.dhost
+        ethPkt.dhost = ethPkt.shost
+        ethPkt.shost = temp
+        
+        ipPkt = headers.IpHeader()
+        ipDecodeLength = ipPkt.decode(packet[decodeLength:])  
+        temp = ipPkt.dst
+        ipPkt.dst = ipPkt.src
+        ipPkt.src=temp
+
+        pkt = headers.IcmpHeader()
+        pkt.decode(packet[decodeLength + ipDecodeLength:])
+        pkt.type = 0
+        checksum = utils.checksum(pkt.encode())
+        pkt.sum = checksum    
+        print (str(pkt))  
+
+        
+        
+        
+        buf = ethPkt.encode() + ipPkt.encode() + pkt.encode()
+
+        print(ethPkt.shost)
+        outface = self.findIfaceByMac(ethPkt.shost)
+        self.printEthPacket(buf)
+
+        print("...sending icmp packet through interface: " + str(outface.name))
+        #self.printEthPacket(buf)
+        
+        self.sendPacket(buf, outface.name)
+
+
+
     def ipProcess(self,packet,iface):
         print ("...started ipv4 process")
         ethPkt = headers.EtherHeader()
         pkt = headers.IpHeader()
         decodeLength = ethPkt.decode(packet)        
         pkt.decode(packet[decodeLength:])
+        inface = self.findIfaceByIp(pkt.dst)
+        if inface:
+            self.echoIcmp(packet, inface)
         if (self.arpCache.lookup(pkt.dst) != None):
             print("...looking for packet destination: " + str(pkt.dst))
             print("...return from routingtable lookup: " + str(self.routingTable.lookup(str(pkt.dst))))
             if(self.routingTable.lookup(str(pkt.dst)) != None):
                 outface = self.routingTable.lookup(str(pkt.dst))
                 outmac = self.arpCache
-                self.printEthPacket(packet)
+                #self.printEthPacket(packet)
                 ethPkt.shost = self.findIfaceByName(outface).mac
                 ethPkt.dhost = self.arpCache.lookup(pkt.dst).mac
                 outPkt = ethPkt.encode() + packet[decodeLength:]
-                print("...out packet: ")
-                self.printEthPacket(outPkt)
+                #print("...out packet: ")
+                #self.printEthPacket(outPkt)
                 self.sendPacket(outPkt,outface)
 
         else:
@@ -120,9 +162,25 @@ class SimpleRouter(SimpleRouterBase):
                     buf = replyEthPkt.encode() + buf
                     print("--------------------------------")
                     print("...sending arp request to interface " + ifc.name)
-                    self.printEthPacket(buf)
+                    #self.printEthPacket(buf)
                     self.sendPacket(buf,ifc.name) 
-                    
+            #while True:
+            #    if self.arpCache.lookup(pkt.dst) != None:
+            #        print("...looking for packet destination: " + str(pkt.dst))
+            #        print("...return from routingtable lookup: " + str(self.routingTable.lookup(str(pkt.dst))))
+            #        if(self.routingTable.lookup(str(pkt.dst)) != None):
+            #            outface = self.routingTable.lookup(str(pkt.dst))
+            #            outmac = self.arpCache
+            #            #self.printEthPacket(packet)
+            #            ethPkt.shost = self.findIfaceByName(outface).mac
+            #            ethPkt.dhost = self.arpCache.lookup(pkt.dst).mac
+            #            outPkt = ethPkt.encode() + packet[decodeLength:]
+            #            #print("...out packet: ")
+            #            #self.printEthPacket(outPkt)
+            #            self.sendPacket(outPkt,outface)
+            #            break
+            #        
+            #        
         
                 
         #if self.arpCache.lookup(pkt.dst) == None:
