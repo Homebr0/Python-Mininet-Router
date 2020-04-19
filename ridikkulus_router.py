@@ -157,7 +157,7 @@ class SimpleRouter(SimpleRouterBase):
             self.sendPacket(buf, outface.name)
         if inface:
             self.echoIcmp(packet, inface)
-        elif (self.arpCache.lookup(ipPkt.dst) != None):
+        if (self.arpCache.lookup(ipPkt.dst) != None):
             print("...looking for packet destination: " + str(ipPkt.dst))
             print("...return from routing table lookup: " + str(self.routingTable.lookup(str(ipPkt.dst))))
             if(self.routingTable.lookup(str(ipPkt.dst)) != None):
