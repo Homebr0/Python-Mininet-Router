@@ -147,31 +147,30 @@ class SimpleRouter(SimpleRouterBase):
             print("...return from routing table lookup: " + str(self.routingTable.lookup(str(ipPkt.dst))))
             if(self.routingTable.lookup(str(ipPkt.dst)) != None):
                 print("...checking queue")
-                while self.queue:
-
-                    queuePkt = self.queue.pop(0)
-                    print("--------------------------------")
-                    print("...processing queue packet:")
-                    self.printEthPacket(queuePkt)
-                    tempEth = headers.EtherHeader()                    
-                    tempDecodeLength = tempEth.decode(queuePkt) 
-
-                    tempIpPkt = headers.IpHeader()
-                    tempIpDecode = tempIpPkt.decode(queuePkt[tempDecodeLength:])                    
-                    #tempIpPkt.ttl =  tempIpPkt.ttl - 1  
-
-                    inface = self.findIfaceByIp(tempIpPkt.dst)
-
-                    outface = self.routingTable.lookup(str(tempIpPkt.dst))                        
-                    #self.printEthPacket(packet)
-
-                    tempEth.shost = self.findIfaceByName(outface).mac
-                    tempEth.dhost = self.arpCache.lookup(tempIpPkt.dst).mac
-
-                    outPkt = tempEth.encode() + tempIpPkt.encode() + queuePkt[tempDecodeLength + tempIpDecode:]
-                    #print("...out packet: ")
-                    #self.printEthPacket(outPkt) 
-                    self.sendPacket(outPkt,outface)
+                #while self.queue:
+                #    queuePkt = self.queue.pop(0) 
+                #    print("--------------------------------")
+                #    print("...processing queue packet:")
+                #    self.printEthPacket(queuePkt)
+                #    tempEth = headers.EtherHeader()                    
+                #    tempDecodeLength = tempEth.decode(queuePkt) 
+#
+                #    tempIpPkt = headers.IpHeader()
+                #    tempIpDecode = tempIpPkt.decode(queuePkt[tempDecodeLength:])                    
+                #    #tempIpPkt.ttl =  tempIpPkt.ttl - 1  
+#
+                #    inface = self.findIfaceByIp(tempIpPkt.dst)
+#
+                #    outface = self.routingTable.lookup(str(tempIpPkt.dst))                        
+                #    #self.printEthPacket(packet)
+#
+                #    tempEth.shost = self.findIfaceByName(outface).mac
+                #    tempEth.dhost = self.arpCache.lookup(tempIpPkt.dst).mac
+#
+                #    outPkt = tempEth.encode() + tempIpPkt.encode() + queuePkt[tempDecodeLength + tempIpDecode:]
+                #    #print("...out packet: ")
+                #    #self.printEthPacket(outPkt) 
+                #    self.sendPacket(outPkt,outface)
                 print("...queue is empty")        
                 outface = self.routingTable.lookup(str(ipPkt.dst))                
                 #self.printEthPacket(packet)
