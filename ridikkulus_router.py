@@ -155,7 +155,7 @@ class SimpleRouter(SimpleRouterBase):
             outface = self.findIfaceByMac(ethPkt.shost)
 
             self.sendPacket(buf, outface.name)
-        elif inface:
+        if inface:
             self.echoIcmp(packet, inface)
         elif (self.arpCache.lookup(ipPkt.dst) != None):
             print("...looking for packet destination: " + str(ipPkt.dst))
