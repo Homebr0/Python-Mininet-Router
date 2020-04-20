@@ -111,7 +111,7 @@ class SimpleRouter(SimpleRouterBase):
         icmpDecode = pkt.decode(packet[decodeLength + ipDecodeLength:])
                
         
-        buf = ethPkt.encode() + ipPkt.encode() + pkt.encode() + packet[decodeLength + ipDecodeLength + icmpDecode:]
+        
         if len(packet[decodeLength + ipDecodeLength + icmpDecode:]) > 0:
             pkt.type=3
             pkt.code=3
@@ -122,6 +122,7 @@ class SimpleRouter(SimpleRouterBase):
         pkt.sum = checksum    
         #print (str(pkt))  
         #print(ethPkt.shost)
+        buf = ethPkt.encode() + ipPkt.encode() + pkt.encode() + packet[decodeLength + ipDecodeLength + icmpDecode:]
         outface = self.findIfaceByMac(ethPkt.shost)
         self.printEthPacket(buf)
 
@@ -209,16 +210,57 @@ class SimpleRouter(SimpleRouterBase):
 
         else:
             self.queue.append(packet)
-            for ifc in self.ifaces:
-                if ifc.name != iface.name:
-                    searchArpPkt = headers.ArpHeader(hln=6, pln=4, op=1, sha=ifc.mac, sip=ifc.ip, tha="FF:FF:FF:FF:FF:FF", tip=ipPkt.dst)
-                    buf = searchArpPkt.encode()
-                    replyEthPkt = headers.EtherHeader(shost=ifc.mac, dhost="FF:FF:FF:FF:FF:FF", type=2054)
-                    buf = replyEthPkt.encode() + buf
+            if len(self.queue) > 4:
+                while self.queue:
+                    queuePkt = self.queue.pop(0) 
                     print("--------------------------------")
-                    print("...sending arp request to interface " + ifc.name)
-                    #self.printEthPacket(buf)
-                    self.sendPacket(buf,ifc.name) 
+                    print("...processing unreachable host queue packet:")
+                    self.printEthPacket(queuePkt)
+                    tempEth = headers.EtherHeader()                    
+                    tempDecodeLength = tempEth.decode(queuePkt) 
+
+                    tempEth.dhost = tempEth.shost
+                    tempEth.shost = iface.mac 
+
+                    tempIpPkt = headers.IpHeader()
+                    tempIpDecode = tempIpPkt.decode(queuePkt[tempDecodeLength:])                    
+                    
+                    tempIpPkt.dst = tempIpPkt.src
+                    tempIpPkt.src = iface.ip
+                    
+                    tempIcmp = headers.IcmpHeader()
+                    tempIcmpDecode = tempIcmp.decode(queuePkt[tempDecodeLength + tempIpDecode:])
+                    tempIcmp.type = 3
+                    tempIcmp.code = 0
+                    
+                    tempIcmp.sum = 0
+                    checksum = utils.checksum(tempIcmp.encode())
+                    tempIcmp.sum = checksum 
+
+                    tempIpPkt.sum = 0
+                    checksum = utils.checksum(tempIpPkt.encode())
+                    tempIpPkt.sum = checksum  
+                 
+                    outface = iface.name                        
+                    #self.printEthPacket(packet)                
+                    
+                
+                    outPkt = tempEth.encode() + tempIpPkt.encode() + tempIcmp.encode() + queuePkt[tempDecodeLength + tempIpDecode + tempIcmpDecode:]
+                    #print("...out packet: ")
+                    #self.printEthPacket(outPkt) 
+                    self.printEthPacket(outPkt)
+                    self.sendPacket(outPkt,outface)
+            else:
+                for ifc in self.ifaces:
+                    if ifc.name != iface.name:
+                        searchArpPkt = headers.ArpHeader(hln=6, pln=4, op=1, sha=ifc.mac, sip=ifc.ip, tha="FF:FF:FF:FF:FF:FF", tip=ipPkt.dst)
+                        buf = searchArpPkt.encode()
+                        replyEthPkt = headers.EtherHeader(shost=ifc.mac, dhost="FF:FF:FF:FF:FF:FF", type=2054)
+                        buf = replyEthPkt.encode() + buf
+                        print("--------------------------------")
+                        print("...sending arp request to interface " + ifc.name)
+                        #self.printEthPacket(buf)
+                        self.sendPacket(buf,ifc.name) 
             #while True:
             #    if self.arpCache.lookup(pkt.dst) != None:
             #        print("...looking for packet destination: " + str(pkt.dst))
@@ -251,7 +293,7 @@ class SimpleRouter(SimpleRouterBase):
         try:
             pkt.decode(packet)
             print("--------------------------------")
-            print("Arp Header")
+            print("ICMP Header")
             print("--------------------------------") 
             print(str(pkt))
         except RuntimeError:

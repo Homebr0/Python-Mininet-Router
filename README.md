@@ -23,8 +23,21 @@ This implementation is based on the original code for Stanford CS144 lab3 (https
 
 ## TODO
 
-    ###########################################################
-    ##                                                       ##
-    ## REPLACE CONTENT OF THIS FILE WITH YOUR PROJECT REPORT ##
-    ##                                                       ##
-    ###########################################################
+Name and PID of each team member (up to 3 members in one team) and the contribution of each member
+    Rebecca Dupuis 6056552
+    Jason Davila 4953994
+    Issachar Vinajeras 3007031
+
+
+The high level design of your implementation
+    This is an implementation of a router which receives packets and appropriately handles them. There are multiple parts to this. The router is able to handle ARP, ICMP, and IPv4 packets and will either forward the packet, respond, or deal with it if it was meant to arrive at the router.
+
+The problems you ran into and how you solved the problems
+    This assignment was challenging in that there are many parts to understanding how to deal with packets. First, we ran into the challenge of decoding and unpacking the ethernet frame in order to have the ARP or IPv4 packet. After this was done, it was easier to proceed.
+    Another challenge of ours was dealing with checksum. At first we didn't know we needed to handle this and didn't understand why our ping was not working. Afterwards, we had trouble understanding how exactly to calculate it, but with the office hour help we figured it out.
+
+List of any additional libraries used
+    No additional libraries used.
+
+Acknowledgement of any online tutorials or code example (except class website) you have been using.
+    
