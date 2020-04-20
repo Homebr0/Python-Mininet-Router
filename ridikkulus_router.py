@@ -109,10 +109,7 @@ class SimpleRouter(SimpleRouterBase):
 
         pkt = headers.IcmpHeader()
         icmpDecode = pkt.decode(packet[decodeLength + ipDecodeLength:])
-        
-
-        
-        
+               
         
         buf = ethPkt.encode() + ipPkt.encode() + pkt.encode() + packet[decodeLength + ipDecodeLength + icmpDecode:]
         if len(packet[decodeLength + ipDecodeLength + icmpDecode:]) > 0:
@@ -120,6 +117,7 @@ class SimpleRouter(SimpleRouterBase):
             pkt.code=3
         else:
             pkt.type = 0
+        pkt.sum = 0
         checksum = utils.checksum(pkt.encode())
         pkt.sum = checksum    
         #print (str(pkt))  
@@ -143,20 +141,28 @@ class SimpleRouter(SimpleRouterBase):
         ipDecode = ipPkt.decode(packet[decodeLength:])
 
         inface = self.findIfaceByIp(ipPkt.dst)
+
+        
+
+        if inface:
+            self.echoIcmp(packet, inface)
+        else:
+            ipPkt.ttl =  ipPkt.ttl - 1
+            ipPkt.sum = 0
+            checksum = utils.checksum(ipPkt.encode())
+            ipPkt.sum = checksum
         if ipPkt.ttl < 1:
             pkt = headers.IcmpHeader()
-            icmpDecode = pkt.decode(packet[decodeLength + ipDecode:])
+            #icmpDecode = pkt.decode(packet[decodeLength + ipDecode:])
             pkt.type = 11
             pkt.code = 0
             checksum = utils.checksum(pkt.encode())
             pkt.sum = checksum
 
-            buf = ethPkt.encode() + ipPkt.encode() + pkt.encode() + packet[decodeLength + ipDecodeLength + icmpDecode:]
-            outface = self.findIfaceByMac(ethPkt.shost)
+            buf = ethPkt.encode() + ipPkt.encode() + pkt.encode() + packet[decodeLength + ipDecode:]
+            outface = self.findIfaceByMac(ethPkt.dhost)
 
             self.sendPacket(buf, outface.name)
-        if inface:
-            self.echoIcmp(packet, inface)
         if (self.arpCache.lookup(ipPkt.dst) != None):
             print("...looking for packet destination: " + str(ipPkt.dst))
             print("...return from routing table lookup: " + str(self.routingTable.lookup(str(ipPkt.dst))))
@@ -172,7 +178,7 @@ class SimpleRouter(SimpleRouterBase):
                 
                     tempIpPkt = headers.IpHeader()
                     tempIpDecode = tempIpPkt.decode(queuePkt[tempDecodeLength:])                    
-                    tempIpPkt.ttl =  ipPkt.ttl - 1
+                    tempIpPkt.ttl =  tempIpPkt.ttl - 1
                     tempIpPkt.sum = 0
                     checksum = utils.checksum(tempIpPkt.encode())
                     tempIpPkt.sum = checksum  
@@ -195,10 +201,6 @@ class SimpleRouter(SimpleRouterBase):
                 ethPkt.shost = self.findIfaceByName(outface).mac
                 ethPkt.dhost = self.arpCache.lookup(ipPkt.dst).mac
                 
-                ipPkt.ttl =  ipPkt.ttl - 1
-                ipPkt.sum = 0
-                checksum = utils.checksum(ipPkt.encode())
-                ipPkt.sum = checksum
                 outPkt = ethPkt.encode() + ipPkt.encode() + packet[decodeLength + ipDecode:]
                 
                 #print("...out packet: ")
