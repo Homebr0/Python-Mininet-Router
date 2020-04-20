@@ -108,7 +108,7 @@ class SimpleRouter(SimpleRouterBase):
         ipPkt.src=temp
 
         pkt = headers.IcmpHeader()
-        icmpDecode = decode(packet[decodeLength + ipDecodeLength:])
+        icmpDecode = pkt.decode(packet[decodeLength + ipDecodeLength:])
         
 
         
