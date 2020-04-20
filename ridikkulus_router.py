@@ -172,7 +172,10 @@ class SimpleRouter(SimpleRouterBase):
                 
                     tempIpPkt = headers.IpHeader()
                     tempIpDecode = tempIpPkt.decode(queuePkt[tempDecodeLength:])                    
-                    #tempIpPkt.ttl =  tempIpPkt.ttl - 1  
+                    tempIpPkt.ttl =  ipPkt.ttl - 1
+                    tempIpPkt.sum = 0
+                    checksum = utils.checksum(tempIpPkt.encode())
+                    tempIpPkt.sum = checksum  
                 
                     inface = self.findIfaceByIp(tempIpPkt.dst)
                 
@@ -191,8 +194,13 @@ class SimpleRouter(SimpleRouterBase):
                 #self.printEthPacket(packet)
                 ethPkt.shost = self.findIfaceByName(outface).mac
                 ethPkt.dhost = self.arpCache.lookup(ipPkt.dst).mac
-                #ipPkt.ttl =  ipPkt.ttl - 1
+                
+                ipPkt.ttl =  ipPkt.ttl - 1
+                ipPkt.sum = 0
+                checksum = utils.checksum(ipPkt.encode())
+                ipPkt.sum = checksum
                 outPkt = ethPkt.encode() + ipPkt.encode() + packet[decodeLength + ipDecode:]
+                
                 #print("...out packet: ")
                 #self.printEthPacket(outPkt)
                 self.sendPacket(outPkt,outface)
